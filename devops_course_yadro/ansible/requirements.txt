@@ -1,0 +1,7 @@
+allure-pytest==2.15.3
+ansible==11.13.0
+ansible-creator=26.4.2
+docker==7.1.0
+molecule==5.1.0
+molecule-docker==2.1.0
+testinfra==6.0.0

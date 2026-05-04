@@ -1,0 +1,85 @@
+---
+- name: Prepare for kuber
+  hosts: all
+  become: true
+  roles:
+    - v_neyanin.kuber.network_for_kuber
+    - v_neyanin.kuber.preferences_for_kuber
+    - v_neyanin.kuber.host
+
+- name: Kuber init
+  hosts: master_group
+  become: true
+  
+  tasks:
+    - name: Check init
+      ansible.builtin.stat:
+        path: /etc/kubernetes/admin.conf
+      register: admin_conf
+    
+    - name: Kuber init
+      ansible.builtin.command:
+        cmd: |
+          kubeadm init --pod-network-cidr "{{ pod_network_cidr }}" --service-cidr "{{ service_cidr }}" --cri-socket=unix:///var/run/crio/crio.sock
+      register: init_command
+      when: not admin_conf.stat.exists
+    
+    - name: Ensure .kube directory exists
+      ansible.builtin.file:
+        path: "/home/{{ ansible_env.SUDO_USER }}/.kube"
+        state: directory
+        owner: "{{ ansible_env.SUDO_USER }}"
+        group: "{{ ansible_env.SUDO_USER }}"
+        mode: '0755'
+
+    - name: Copy admin.conf to user's .kube/config
+      ansible.builtin.copy:
+        src: /etc/kubernetes/admin.conf
+        dest: "/home/{{ ansible_env.SUDO_USER }}/.kube/config"
+        owner: "{{ ansible_env.SUDO_USER }}"
+        group: "{{ ansible_env.SUDO_USER }}"
+        mode: '0644'
+        remote_src: true
+    
+    - name: Get join command
+      ansible.builtin.command: kubeadm token create --print-join-command
+      register: join_command
+  
+    - name: Save join command as fact
+      ansible.builtin.set_fact:
+        join_cmd: "{{ join_command.stdout }}"
+
+    - name: Add custom-resources
+      ansible.builtin.template:
+        src: custom-resources.yaml.j2
+        dest: "/home/{{ ansible_env.SUDO_USER }}/.kube/custom-resources.yaml"
+        owner: "{{ ansible_env.SUDO_USER }}"
+        group: "{{ ansible_env.SUDO_USER }}"
+        mode: '0644'
+
+- name: Joining to cluster
+  hosts: hosts
+  become: true
+
+  tasks:
+    - name: Check join
+      ansible.builtin.stat:
+        path: /etc/kubernetes/kubelet.conf
+      register: kubelet_conf
+
+    - name: Join command
+      ansible.builtin.shell: |
+        {{ hostvars[groups['master_group'][0]]['join_cmd'] }} --cri-socket=unix:///var/run/crio/crio.sock
+      when: not kubelet_conf.stat.exists
+
+- name: Setup calico
+  hosts: master_group
+  
+  tasks:
+    - name: Install Tigera
+      ansible.builtin.command: kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.25.2/manifests/tigera-operator.yaml
+      environment:
+        KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+
+    - name: Start calico
+      ansible.builtin.command: kubectl apply -f "/home/{{ ansible_user }}/.kube/custom-resources.yaml"

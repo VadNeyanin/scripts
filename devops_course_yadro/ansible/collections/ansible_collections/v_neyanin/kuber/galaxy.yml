@@ -1,0 +1,19 @@
+---
+namespace: v_neyanin
+name: kuber
+version: 1.0.0
+readme: README.md
+authors:
+  - Vadim Neyanin
+description: Collection for Kubernetes management
+license:
+  - MIT
+tags:
+  - kubernetes
+  - k8s
+  - cloud
+dependencies: {}
+repository: https://github.com/v_neyanin/kuber
+documentation: https://github.com/v_neyanin/kuber
+homepage: https://github.com/v_neyanin/kuber
+issues: https://github.com/v_neyanin/kuber/issues

@@ -1,0 +1,49 @@
+---
+- name: Install the dependencies for adding repositories
+  ansible.builtin.apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - gnupg
+      - software-properties-common
+      - curl
+      - wget
+      - iptables 
+      - tmux 
+      - keepalived
+      - haproxy
+    state: present
+    update_cache: yes
+
+- name: Add repo to sources
+  ansible.builtin.apt_repository: 
+    repo: "deb [trusted=yes] http://10.184.0.119:8000/ ./"
+    state: present
+    filename: myrepo
+
+- name: Install cri-o, kubelet, kubeadm, kubectl
+  ansible.builtin.apt:
+    name:
+      - cri-o
+      - kubelet
+      - kubeadm
+      - kubectl
+    state: present
+    update_cache: yes
+    install_recommends: yes
+
+- name: Setup crio capabilites
+  ansible.builtin.copy:
+    src: 20-default-capabilites.conf
+    dest: /etc/crio/crio.conf.d/20-default-capabilites.conf
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Start crio
+  ansible.builtin.service:
+    name: crio
+    state: started
+    enabled: true
+    daemon_reload: true
+    

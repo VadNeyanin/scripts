@@ -1,0 +1,6 @@
+---
+# defaults file for v_neyanin.kuber.host
+
+# Variable that will be displayed in debug output
+# This demonstrates proper role variable naming with the 'run_' prefix
+host_my_variable: "default_value"

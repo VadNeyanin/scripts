@@ -1,0 +1,201 @@
+specification {
+  element actor
+  element application
+  element component
+  element database
+  tag frontend {
+    color #33b037
+  }
+  tag backend {
+    color #000000ba
+  }
+  tag data {
+    color #40d3d6
+  }
+  tag warn
+}
+
+model {
+  customer = actor 'User' {
+    style {
+      color red
+      shape person
+    }
+  }
+
+  app = application 'Currency Service' {
+    component frontend 'Frontend' {
+      #frontend
+      description 'Browser or CLI'
+      style {
+        icon tech:chrome
+        shape browser
+      }
+    }
+
+    component backend 'Backend Services' {
+      #backend
+      description '
+        Implements business logic
+        and exposes as REST API
+      '
+      component bin 'Binary file' {
+        #backend #warn
+        description 'Binary file from golang'
+        style {
+          icon tech:go
+          shape component
+        }
+        component main 'main.go' {
+          #backend
+          description 'Load .env and start server'
+          style {
+            color primary
+            shape component
+          }
+        }
+        component config 'config.go' {
+          #backend
+          description 'Load .env'
+          style {
+            color muted
+            shape component
+          }
+        }
+        component services 'services.go' {
+          #backend
+          description 'Change date\nGet port'
+          style {
+            color muted
+            shape component
+          }
+        }
+        application server 'server.go' {
+          #backend
+          description 'http writer and request\nchi router\nconvert to json'
+          style {
+            color secondary
+            shape component
+          }
+        }
+        component handleInfo 'handleInfo func' {
+          #backend
+          description 'Handle /info'
+            style {
+              color secondary
+              shape component
+              size small
+            }
+          }
+        component handleCurrency 'handleCurrency func'{
+          #backend
+          description 'Handle /info/currency'
+          style {
+            color secondary
+            shape component
+            size small
+          }
+        }
+        
+        component xml_parser 'xml_parser.go' {
+          #backend #warn
+          description 'Load .env and start server'
+          style {
+            color amber
+            shape component
+          }
+        }
+      }
+      database data {
+        #data
+        database env '.env' {
+          #data
+          description 'Contains information for /info'
+          style {
+            color muted
+            shape storage
+            size small
+          }
+        }
+        database db 'ЦБ РФ' {
+          #data #warn
+          description 'ЦБ РФ database
+          contains currency and ISO-codes'
+          style {
+            color amber
+            icon tech:xml
+            shape storage
+            size small
+          }
+        } 
+      }
+      main -> config 'Load config'
+      config -> env 'Find config and \nload to structure info'
+      main -> server 'Starting server'
+      xml_parser -> db 'Generate URL and\nrequest XML'
+      db -> xml_parser 'XML Response'
+      server -> handleInfo 'GET /info'
+      server -> handleCurrency 'GET /info/currency'
+      handleCurrency -> server 'Structure for\nMarshallJSON'
+      handleInfo -> server 'Structure for\nMarshallJSON'
+      handleCurrency -> xml_parser 'Input date\nand currency'
+      xml_parser -> handleCurrency 'XML structure\nwith currency'
+      xml_parser -> services 'Input date'
+      services -> xml_parser 'Formatted date'
+      server -> services 'Get port'
+      services -> server 'Check PORT and return'
+      }
+    
+    }
+
+    // UI requests data from the Backend
+    frontend -> backend 'fetches via HTTP'
+
+  // Customer uses the UI
+  customer -> frontend 'opens in browser'  'Customer opens...' 'HTTP'
+  customer -> app 'checking currency value'
+}
+
+
+views {
+
+  view index {
+    include *
+  }
+
+  view app of app {
+    include *
+
+    style * {
+      opacity 25%
+    }
+    style customer {
+      color muted
+    }
+  }
+  view full of backend {
+    include config
+    include env
+    include main
+    include server
+    include db
+    include xml_parser
+    include handleCurrency
+    include handleInfo
+    include services
+    style data {
+    	border dotted
+      color amber
+    }
+  }
+
+  view binary_file of bin {
+    include *
+    style app.backend.bin {
+      border dashed
+    }
+  }
+  view data of data {
+    include *
+  }
+}

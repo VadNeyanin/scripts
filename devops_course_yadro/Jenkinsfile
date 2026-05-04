@@ -1,0 +1,143 @@
+node {
+
+    Boolean isTag  = env.TAG_NAME?.startsWith('v') ?: false
+    Boolean isMR   = env.CHANGE_ID != null
+    Boolean isMain = env.BRANCH_NAME == 'main'
+
+    Boolean shouldBuild      = isMain || isMR  || isTag
+    Boolean shouldPush       = isMain || isTag
+    Boolean shouldStaging    = isMain
+    Boolean shouldProduction = isTag
+
+    def imageName = "currency-app"
+    def appName = "application"
+    def port = "8000"
+
+    def hadolintVersion = "v2.14.0"
+    def securegoVersion = "2.24.6"
+    def credentialsDockerRegistryID = "docker-registry"
+
+    def dockerRegistryUrl = "vadikneya"
+    def imageTag
+    def tagImagePrompt = "${dockerRegistryUrl}/${imageName}"
+    def commitTag = "v1.0.${env.BUILD_NUMBER}"
+
+    stage('Checkout') {
+        echo "Checkout... [STUB]"
+        checkout scm
+        imageTag = env.TAG_NAME ?: sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+    }
+
+    stage('Lint and SAST') {
+        withCredentials([
+                    usernamePassword(
+                        credentialsId: credentialsDockerRegistryID,
+                        usernameVariable: 'USER',
+                        passwordVariable: 'PASSWORD'
+                    )
+                ]) {
+                parallel(
+                    'Lint': {
+                        echo "Start linting dockerfile with hadolint... [STUB]"
+                        sh """docker login -u ${USER} -p ${PASSWORD}
+                        docker run --rm -i hadolint/hadolint:${hadolintVersion} < Dockerfile > hadolint.log
+                        docker logout"""
+                        archiveArtifacts artifacts: 'hadolint.log', allowEmptyArchive: true
+                    },
+                    'SAST': {
+                        echo "Start SAST... [STUB]"
+                        sh """docker login -u ${USER} -p ${PASSWORD}
+                        docker run --rm -v \$(pwd):/app -w /app securego/gosec:${securegoVersion} ./... > gosec.log
+                        docker logout"""
+                        archiveArtifacts artifacts: 'gosec.log', allowEmptyArchive: true
+                    }
+                )
+            }
+    }
+
+    if (shouldBuild) {
+        stage('Build') {
+            echo "Start building application... [STUB]"
+            sh "docker image prune -a --force"
+            withCredentials([
+                    usernamePassword(
+                        credentialsId: credentialsDockerRegistryID,
+                        usernameVariable: 'USER',
+                        passwordVariable: 'PASSWORD'
+                    )
+                ]) {
+                    echo "Pushing in docker registry..."
+                    sh """docker login -u ${USER} -p ${PASSWORD}
+                    docker build -t ${imageName}:${imageTag} .
+                    docker logout"""
+                }
+        }
+    }
+        
+
+    if (shouldPush) {
+        stage('Push') {
+            withCredentials([
+                usernamePassword(
+                    credentialsId: credentialsDockerRegistryID,
+                    usernameVariable: 'USER',
+                    passwordVariable: 'PASSWORD'
+                )
+            ]) {
+                echo "Pushing in docker registry... [STUB]"
+                sh """docker login -u ${USER} -p ${PASSWORD}
+                docker tag ${imageName}:${imageTag} ${tagImagePrompt}:${imageTag}
+                docker tag ${imageName}:${imageTag} ${tagImagePrompt}:latest
+                docker push ${tagImagePrompt}:${imageTag}
+                docker push ${tagImagePrompt}:latest
+                docker logout"""
+            }
+        }
+    }
+
+    if (shouldStaging) {
+        stage('Deploy staging') {
+            build job: 'Deploy pipeline', parameters: [
+                string(name: 'IMAGE_TAG', value: imageTag),
+                string(name: 'ENVIRONMENT', value: 'staging')
+            ]
+        }
+        stage('Tag commit') {
+            withCredentials([
+                usernamePassword(
+                    credentialsId: 'persona;',
+                    usernameVariable: 'USER',
+                    passwordVariable: 'PASSWORD'
+                )
+            ]) {
+
+                sh """
+                    git config user.email "neyanin.v@yandex.by"
+                    git config user.name "Vadim Neyanin"
+                    git remote set-url origin https://$USER:$PASSWORD@education-git.yadro.com/education/devops/2026/v.neyanin/app.git
+                    git tag -a ${commitTag} -m "Release ${commitTag}"
+                    git push origin ${commitTag}
+                """
+            }
+        }
+    }
+
+    if (shouldProduction) {
+        stage('Deploy production') {
+            build job: 'Deploy pipeline', parameters: [
+                string(name: 'IMAGE_TAG', value: imageTag),
+                string(name: 'ENVIRONMENT', value: 'production')
+            ]
+        }
+        stage('Create GitLab Release') {
+            withCredentials([string(credentialsId: 'git-token-rw', variable: 'TOKEN')]) {
+                def tag = env.TAG_NAME
+                def changelog = sh(script: 'git log --pretty=format:"- %s%n%b" \$(git describe --tags --abbrev=0 HEAD^)..HEAD', returnStdout: true).trim().replace('"', '\\"').replace('\n', '\\n')
+                sh """curl -X POST -H "PRIVATE-TOKEN: ${TOKEN}" -H "Content-Type: application/json" \
+                     -d '{"name": "Release ${tag}", "tag_name": "${tag}", "description": "${changelog}"}' \
+                     "https://education-git.yadro.com/api/v4/projects/68/releases"
+                """
+            }
+        }
+    }
+}

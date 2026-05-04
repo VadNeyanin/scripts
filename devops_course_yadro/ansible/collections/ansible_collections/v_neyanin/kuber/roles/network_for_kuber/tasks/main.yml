@@ -1,0 +1,23 @@
+---
+# tasks file for v_neyanin.kuber.network_for_kuber
+
+- name: Add static interface
+  ansible.builtin.template:
+    src: 50-cloud-init.yaml.j2
+    dest: /etc/netplan/50-cloud-init.yaml
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: Change hostnames
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname }}"
+
+- name: Change hosts
+  ansible.builtin.template:
+    src: hosts.j2
+    dest: /etc/hosts
+    owner: root
+    group: root
+    mode: '0644'
+    

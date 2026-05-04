@@ -1,0 +1,46 @@
+---
+# tasks file for v_neyanin.kuber.preferences_for_kuber
+
+- name: Add k8s.conf
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/k8s.conf
+    content: |
+      overlay
+      br_netfilter
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Add modules overlay and br_netfilter
+  ansible.builtin.shell: modprobe overlay && modprobe br_netfilter
+
+- name: Configure sysctl parameters for Kuber
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/10-k8s.conf
+    content: |
+      net.bridge.bridge-nf-call-ip6tables = 1
+      net.bridge.bridge-nf-call-iptables = 1
+      net.ipv4.ip_forward = 1
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Apply sysctl parameters
+  ansible.builtin.command: sysctl --system
+  changed_when: false
+
+- name: Disable swap
+  ansible.builtin.command: swapoff -a
+
+- name: Comment swap in fstab
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    regexp: '^([^#].*\s+swap\s+.*)$'
+    line: '#\1'
+    backrefs: true
+
+- name: Reboot the machine
+  ansible.builtin.reboot:
+    reboot_timeout: 60
+    msg: "Reboot initiated by Ansible"
+    pre_reboot_delay: 10

@@ -1,0 +1,11 @@
+---
+# argument spec file for v_neyanin.kuber.preferences_for_kuber
+
+argument_specs:
+  main:
+    short_description: Role description.
+    options:
+      preferences_for_kuber_my_variable:
+        type: str
+        description: A simple string argument for demonstration.
+        default: "default_value"

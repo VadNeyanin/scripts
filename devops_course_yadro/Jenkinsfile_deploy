@@ -1,0 +1,23 @@
+@Library('jenkins')_
+
+node(params.ENVIRONMENT) {
+    stage('Deploy') {
+        checkout scm
+        withCredentials([
+            usernamePassword(
+                credentialsId: 'docker-registry',
+                usernameVariable: 'USER',
+                passwordVariable: 'PASSWORD'
+            )
+        ]) {
+            sh """docker login -u ${USER} -p ${PASSWORD}
+            docker compose down && export VERSION=${params.IMAGE_TAG} && docker compose up -d
+            docker logout"""
+        }
+    smokeTest(
+        port: params.port ?: 8000,
+        serviceName: 'currency',
+        version: '0.1.0'
+    )
+    }
+}

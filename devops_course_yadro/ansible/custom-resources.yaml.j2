@@ -1,0 +1,20 @@
+apiVersion: operator.tigera.io/v1
+kind: Installation
+metadata:
+  name: default
+spec:
+  controlPlaneTolerations:
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule
+  calicoNetwork:
+    ipPools:
+    - cidr: "{{ pod_network_cidr }}"
+      encapsulation: VXLANCrossSubnet
+      natOutgoing: Enabled
+---
+apiVersion: operator.tigera.io/v1
+kind: APIServer
+metadata:
+  name: default
+spec: {}

@@ -1,0 +1,14 @@
+services:
+  currency-app:
+    image: vadikneya/currency-app:${VERSION}
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    mem_limit: 128m
+    cpus: "0.5"
+    environment:
+      - PORT=8000
+    ports:
+      - 127.0.0.1:8000:8000

@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: currency
+  labels:
+    app: currency
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: currency
+  template:
+    metadata:
+      labels:
+        app: currency
+    spec:
+      containers:
+      - name: currency-app
+        image: vadikneya/currency-app:latest
+        ports:
+        - containerPort: 8000
