@@ -1,0 +1,25 @@
+apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+metadata:
+  name: currency-app-updater
+  namespace: argocd
+spec:
+  commonUpdateSettings:
+    updateStrategy: "semver"
+    forceUpdate: false
+    allowTags: "regexp:^v[0-9]+\\.[0-9]+\\.[0-9]+$"
+  writeBackConfig:
+    method: git
+    gitConfig:
+      repository: "https://education-git.yadro.com/education/devops/2026/v.neyanin/app.git"
+      branch: "v.neyanin/argocd"
+      writeBackTarget: "helmvalues:values.yaml"
+  applicationRefs:
+    - namePattern: "currency-app*"
+      images:
+        - alias: "currency-app"
+          imageName: "docker.io/vadikneya/currency-app:v1.0.x"
+          manifestTargets:
+            helm:
+              name: image.repository
+              tag: image.tag

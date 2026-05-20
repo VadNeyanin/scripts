@@ -1,13 +1,21 @@
 node {
+    def imageTag
+    stage('Checkout') {
+        echo "Checkout... [STUB]"
+        checkout scm
+        imageTag = env.TAG_NAME ?: sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+    }
+    
+    def commiterName = sh(script: 'git show -s --pretty=%an', returnStdout: true).trim()
+    Boolean isHuman  = commiterName != 'argocd-image-updater'
+    Boolean isTag    = env.TAG_NAME?.startsWith('v') ?: false
+    Boolean isMR     = env.CHANGE_ID != null
+    Boolean isMain   = env.BRANCH_NAME == 'main'
 
-    Boolean isTag  = env.TAG_NAME?.startsWith('v') ?: false
-    Boolean isMR   = env.CHANGE_ID != null
-    Boolean isMain = env.BRANCH_NAME == 'main'
-
-    Boolean shouldBuild      = isMain || isMR  || isTag
-    Boolean shouldPush       = isMain || isTag
-    Boolean shouldStaging    = isMain
-    Boolean shouldProduction = isTag
+    Boolean shouldBuild      = (isMain || isMR  || isTag) && isHuman
+    Boolean shouldPush       = (isMain || isTag) && isHuman
+    Boolean shouldStaging    = isMain && isHuman
+    Boolean shouldProduction = isTag && isHuman
 
     def imageName = "currency-app"
     def appName = "application"
@@ -18,15 +26,8 @@ node {
     def credentialsDockerRegistryID = "docker-registry"
 
     def dockerRegistryUrl = "vadikneya"
-    def imageTag
     def tagImagePrompt = "${dockerRegistryUrl}/${imageName}"
     def commitTag = "v1.0.${env.BUILD_NUMBER}"
-
-    stage('Checkout') {
-        echo "Checkout... [STUB]"
-        checkout scm
-        imageTag = env.TAG_NAME ?: sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
-    }
 
     stage('Lint and SAST') {
         withCredentials([
@@ -38,7 +39,7 @@ node {
                 ]) {
                 parallel(
                     'Lint': {
-                        echo "Start linting dockerfile with hadolint... [STUB]"
+                        echo "Start linting dockerfile with hadolint...[STUB]"
                         sh """docker login -u ${USER} -p ${PASSWORD}
                         docker run --rm -i hadolint/hadolint:${hadolintVersion} < Dockerfile > hadolint.log
                         docker logout"""
@@ -97,6 +98,7 @@ node {
 
     if (shouldStaging) {
         stage('Deploy staging') {
+            echo "${imageTag}"
             build job: 'Deploy pipeline', parameters: [
                 string(name: 'IMAGE_TAG', value: imageTag),
                 string(name: 'ENVIRONMENT', value: 'staging')
@@ -129,6 +131,8 @@ node {
                 string(name: 'ENVIRONMENT', value: 'production')
             ]
         }
+    }
+    if (shouldProduction) {
         stage('Create GitLab Release') {
             withCredentials([string(credentialsId: 'git-token-rw', variable: 'TOKEN')]) {
                 def tag = env.TAG_NAME

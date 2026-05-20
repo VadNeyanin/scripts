@@ -1,0 +1,28 @@
+image:
+  repository: docker.io/vadikneya/currency-app
+  tag: v1.0.13
+  containerPort: 8000
+deployment:
+  replicasCount: 2
+  revisionHistoryLimit: 2
+service:
+  targetPort: 8000
+service_nginx:
+  httpPort: 30001
+  httpsPort: 30002
+  nginx:
+    name: ingress-nginx-controller
+    namespace: ingress-nginx
+ingress:
+  secret_name: tls-secret
+livenessProbe:
+  httpGet:
+    path: '/info'
+  failureThreshold: 3
+  periodSeconds: 15
+  initialDelaySeconds: 15
+readinessProbe:
+  httpGet:
+    path: '/info/currency?date=2026-04-04'
+  failureThreshold: 3
+  periodSeconds: 30

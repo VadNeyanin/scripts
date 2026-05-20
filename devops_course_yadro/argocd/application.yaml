@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: currency-app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'https://education-git.yadro.com/education/devops/2026/v.neyanin/app.git'
+    targetRevision: v.neyanin/argocd
+    path: helm/currency-app
+    helm:
+      valueFiles:
+        - values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: myapp
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

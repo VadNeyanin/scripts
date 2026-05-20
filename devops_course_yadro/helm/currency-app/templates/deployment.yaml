@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "currency-app.labels" . | nindent 4 }}
+spec:
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app: {{ .Release.Name }}-service
+          topologyKey: kubernetes.io/hostname
+  replicas: {{ .Values.deployment.replicasCount }}
+  revisionHistoryLimit: {{ .Values.deployment.revisionHistoryLimit }}
+  selector:
+    matchLabels:
+      {{- include "currency-app.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "currency-app.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+      - name: {{ .Release.Name }}-app
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        ports:
+        - containerPort: {{ .Values.image.containerPort }}
+      livenessProbe:
+        httpGet:
+          path: {{ .Values.livenessProbe.httpGet.path }}
+          port: {{ .Values.image.containerPort }}
+        initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+        failureThreshold: {{ .Values.livenessProbe.failureThershold }}
+        periodSeconds: {{ .Values.livenessProbe.failureThershold }}
+      readinessProbe:
+        httpGet:
+          path: {{ .Values.readinessProbe.httpGet.path }}
+          port: {{ .Values.image.containerPort }}
+        failureThreshold: {{ .Values.readinessProbe.failureThershold }}
+        periodSeconds: {{ .Values.readinessProbe.failureThershold }}
+
+
+

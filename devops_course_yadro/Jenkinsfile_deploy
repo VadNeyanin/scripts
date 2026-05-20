@@ -10,9 +10,12 @@ node(params.ENVIRONMENT) {
                 passwordVariable: 'PASSWORD'
             )
         ]) {
-            sh """docker login -u ${USER} -p ${PASSWORD}
-            docker compose down && export VERSION=${params.IMAGE_TAG} && docker compose up -d
-            docker logout"""
+            withEnv(["VERSION=${params.IMAGE_TAG}"]) {
+                sh """docker login -u ${USER} -p ${PASSWORD}
+                docker compose down
+                docker compose up -d
+                docker logout"""
+            }
         }
     smokeTest(
         port: params.port ?: 8000,
